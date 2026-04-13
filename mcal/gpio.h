@@ -14,7 +14,7 @@ typedef struct
     volatile uint32 PUPDR;  /*Address offset: 0x0C */
     volatile uint32 IDR;    /*Address offset: 0x10 */
     volatile uint32 ODR;    /*Address offset: 0x14 */
-
+    volatile uint32 BSRR;   /*Address offset: 0x18 */
 
 } gpio;
 
