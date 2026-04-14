@@ -54,9 +54,9 @@ typedef struct{
 
 
 /*Triggers*/
-#define EXTI_TR_RISING 0x01
-#define EXTI_TR_FAILING 0x02
-#define EXTI_TR_FAILING 0x03
+#define EXTI_TR_RISING         0x01
+#define EXTI_TR_FALLING        0x02
+#define EXTI_TR_RISING_FALLING 0x03
 
 /*Ports*/
 #define EXTI_PORTA  0  /* Binary: 0000 */
@@ -65,5 +65,10 @@ typedef struct{
 #define EXTI_PORTD  3  /* Binary: 0011 */
 #define EXTI_PORTE  4  /* Binary: 0100 */
 #define EXTI_PORTH  7  /* Binary: 0111 */
+
+void EXTI_Init(uint8 Port, uint8 Line, uint8 Trigger);
+void EXTI_EnableInterrupt(uint8 Line);
+void EXTI_DisableInterrupt(uint8 Line);
+void EXTI_ClearPendingFlag(uint8 Line);
 
 #endif
