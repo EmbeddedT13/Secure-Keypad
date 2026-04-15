@@ -65,6 +65,7 @@ typedef struct
 void GPIO_SetPinMode(gpio *GPIOx, uint8 PinNum, uint8 Mode);
 void GPIO_SetPullType(gpio *GPIOx, uint8 PinNum, uint8 PullType);
 void GPIO_WritePin(gpio *GPIOx, uint8 PinNum, uint8 State);
+void GPIO_WriteGroup(gpio *GPIOx, uint16 Mask, uint16 Value);
 uint8 GPIO_ReadPin(gpio *GPIOx, uint8 PinNum);
 
 #endif

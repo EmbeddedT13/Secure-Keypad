@@ -28,4 +28,14 @@ uint8 GPIO_ReadPin(gpio *GPIOx, uint8 PinNum){
     if(PinNum <= 15){
         bit_stat = READ_BIT(GPIOx->IDR, PinNum);
     }
+
+    return bit_stat;
+}
+
+void GPIO_WriteGroup(gpio *GPIOx, uint16 Mask, uint16 Value)
+{
+    uint32 set_bits = Value & Mask;
+    
+    uint32 reset_bits = ((~Value) & Mask) << 16;
+    GPIOx->BSRR = set_bits | reset_bits;
 }
