@@ -7,6 +7,6 @@
 void StateMachine_Init(void);
 void StateMachine_Update(void);
 void StateMachine_EmergencyReset(void);
-void StateMachine_DoorbellState(uint8 isPressed);
+void StateMachine_DoorbellState(void);
 
 #endif

@@ -21,7 +21,7 @@ void NVIC_DisableInterrupt(uint8 IRQ_Num){
     }
     else if (IRQ_Num <= 63){
 
-        NVIC_ISER1 = (1 << (IRQ_Num - 32));
+        NVIC_ICER1 = (1 << (IRQ_Num - 32));
     }
 
 }
