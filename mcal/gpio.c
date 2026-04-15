@@ -17,7 +17,7 @@ void GPIO_WritePin(gpio *GPIOx, uint8 PinNum, uint8 State){
         if(State == GPIO_STATE_HIGH) {
             GPIOx->BSRR = 1 << PinNum;
         } else {
-            GPIOx->BSRR = 1<< (PinNum + 16);
+            GPIOx->BSRR = 1 << (PinNum + 16);
         }
     }
 }
