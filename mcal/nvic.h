@@ -10,6 +10,8 @@
 /* Core Interrupt Set-Enable Registers */
 #define NVIC_ISER0     *((volatile uint32*)(NVIC_BASE_ADDRESS + 0x000)) /* Enable external interrupts from 0 to 31  */
 #define NVIC_ISER1     *((volatile uint32*)(NVIC_BASE_ADDRESS + 0x004)) /* Enable external interrupts from 32 to 63 */
+#define NVIC_ICER0     *((volatile uint32*)(NVIC_BASE_ADDRESS + 0x080)) /* Disable external interrupts from 0 to 31 */
+#define NVIC_ICER1     *((volatile uint32*)(NVIC_BASE_ADDRESS + 0x084)) /* Disable external interrupts from 32 to 63 */
 
 
 #define NVIC_IPR        ((volatile uint8*) (NVIC_BASE_ADDRESS + 0x300)) /* Interrupt Priority Registers (Byte-accessible) */
@@ -28,6 +30,7 @@
 #define NVIC_IRQ_EXTI15_10  40
 
 void NVIC_EnableInterrupt(uint8 IRQ_Num);
+void NVIC_DisableInterrupt(uint8 IRQ_Num);
 void NVIC_SetPriority(uint8 IRQ_Num, uint8 Priority);
 
 #endif
