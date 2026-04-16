@@ -3,124 +3,172 @@
 #include "../hal/seven_segment.h"
 #include "../hal/led.h"
 
+
+#define ENTER_CRITICAL()  uint32 primask_save; \
+                          __asm volatile ("MRS %0, PRIMASK" : "=r"(primask_save)); \
+                          __asm volatile ("CPSID I" ::: "memory")
+
+#define EXIT_CRITICAL()   __asm volatile ("MSR PRIMASK, %0" :: "r"(primask_save) : "memory")
+
 typedef enum {
-    STATE_IDLE,
-    STATE_ENTERING_PIN,
+    STATE_LOCKED,
     STATE_UNLOCKED,
     STATE_ALARM
 } SystemState_t;
 
-static SystemState_t CurrentState = STATE_IDLE;
-static uint8 PasswordBuffer[4] = {0};
-static uint8 DigitCount = 0;
-static uint8 LastPressedKey = KEYPAD_NO_KEY_PRESSED;
-static uint8 FailedAttempts = 0; /* Caps at 9 per spec */
+#define LOCKOUT_THRESHOLD  3
+#define PASSWORD_LENGTH    4
 
-static const uint8 CorrectPassword[4] = {'1', '2', '3', '4'}; 
+static SystemState_t  CurrentState    = STATE_LOCKED;
+static uint8          PasswordBuffer[PASSWORD_LENGTH];
+static uint8          DigitCount      = 0;
+static uint8          FailedAttempts  = 0;
+static uint8          LastPressedKey  = KEYPAD_NO_KEY_PRESSED;
 
-/* Helper: Clears LEDs but leaves the 7-segment alone */
-static void ClearAllIndicators(void) {
+static const uint8 CorrectPassword[PASSWORD_LENGTH] = {'1', '2', '3', '4'};
+
+/* ------------------------------------------------------------------ */
+static void ClearProgressLEDs(void) {
     LED_Off(LED_PROG_1);
     LED_Off(LED_PROG_2);
     LED_Off(LED_PROG_3);
     LED_Off(LED_PROG_4);
+}
+
+static void ClearAllIndicators(void) {
+    ClearProgressLEDs();
     LED_Off(LED_SUCCESS);
     LED_Off(LED_ALARM);
 }
 
+static void UpdateProgressBar(uint8 count) {
+    ClearProgressLEDs();
+    if (count >= 1) LED_On(LED_PROG_1);
+    if (count >= 2) LED_On(LED_PROG_2);
+    if (count >= 3) LED_On(LED_PROG_3);
+    if (count >= 4) LED_On(LED_PROG_4);
+}
+
+/* ------------------------------------------------------------------ */
 void StateMachine_Init(void) {
-    CurrentState = STATE_IDLE;
-    DigitCount = 0;
+    /* No IRQs are active yet when this is called from main() before the
+       while(1) loop, so no critical section is needed here. */
+    CurrentState   = STATE_LOCKED;
+    DigitCount     = 0;
     FailedAttempts = 0;
     LastPressedKey = KEYPAD_NO_KEY_PRESSED;
     ClearAllIndicators();
-    SevSeg_Display(FailedAttempts); /* Safely displays 0 on startup */
+    SevSeg_Display(FailedAttempts);
 }
 
+/*
+ * Called from ISR context (EXTI9_5_IRQHandler).
+ * Because we are INSIDE an interrupt, the main loop is already suspended
+ * for the duration of this function — no additional guard is needed here.
+ * The race is from the OTHER direction: main loop corrupting state that
+ * the ISR then reads, which is guarded by ENTER/EXIT_CRITICAL in Update().
+ */
 void StateMachine_EmergencyReset(void) {
-    CurrentState = STATE_IDLE;
-    DigitCount = 0;
+    CurrentState   = STATE_LOCKED;
+    DigitCount     = 0;
     FailedAttempts = 0;
+    LastPressedKey = KEYPAD_NO_KEY_PRESSED;
     ClearAllIndicators();
-    SevSeg_Display(FailedAttempts); 
+    SevSeg_Display(FailedAttempts);
 }
 
 void StateMachine_DoorbellTrigger(void) {
-    /* Simple, bulletproof toggle logic */
+    /* Single atomic toggle — no multi-step read-modify-write on shared
+       state, so no critical section needed. */
     LED_Toggle(LED_DOORBELL);
 }
 
+/* ------------------------------------------------------------------ */
 void StateMachine_Update(void) {
     uint8 key = Keypad_GetPressedKey();
 
-    /* Software Debounce */
     if (key == KEYPAD_NO_KEY_PRESSED) {
         LastPressedKey = KEYPAD_NO_KEY_PRESSED;
-        return; 
-    }
-    if (key == LastPressedKey) {
-        return; 
-    }
-    LastPressedKey = key; 
-
-    /* Global Reset via Keypad 'C' */
-    if (key == 'C') {
-        StateMachine_EmergencyReset();
         return;
     }
+    if (key == LastPressedKey) {
+        return;
+    }
+    LastPressedKey = key;
 
-    switch (CurrentState) {
-        
-        case STATE_IDLE:
-        case STATE_ALARM:
-        case STATE_UNLOCKED:
-            /* If we are recovering from a previous attempt, ANY number key starts a new attempt */
-            if (key >= '0' && key <= '9') {
-                ClearAllIndicators(); 
-                DigitCount = 0;
-                PasswordBuffer[DigitCount] = key;
-                DigitCount++;
-                
-                LED_On(LED_PROG_1);
-                CurrentState = STATE_ENTERING_PIN;
-            }
-            break;
+    /*
+     * CRITICAL SECTION — protect the shared state variables.
+     *
+     * Why here and not around the whole function?
+     * - Keypad_GetPressedKey() only touches GPIOB (not shared with ISR).
+     * - The debounce check above only touches LastPressedKey (not shared
+     *   with ISR — the ISR resets it too, but that race is harmless: at
+     *   worst we re-process the same key once).
+     * - The actual state transitions below ARE the race: if the ISR fires
+     *   between reading DigitCount and writing PasswordBuffer[DigitCount],
+     *   we corrupt the buffer. So we lock only around this block.
+     */
+    ENTER_CRITICAL();
 
-        case STATE_ENTERING_PIN:
-            if (key >= '0' && key <= '9') {
-                PasswordBuffer[DigitCount] = key;
-                DigitCount++;
-                
-                /* Cascade the Progress Bar LEDs */
-                if (DigitCount == 2) LED_On(LED_PROG_2);
-                if (DigitCount == 3) LED_On(LED_PROG_3);
-                if (DigitCount == 4) LED_On(LED_PROG_4);
+    if (CurrentState == STATE_LOCKED) {
 
-                /* Verification Phase */
-                if (DigitCount == 4) {
-                    uint8 isCorrect = 1;
-                    for (uint8 i = 0; i < 4; i++) {
-                        if (PasswordBuffer[i] != CorrectPassword[i]) {
-                            isCorrect = 0;
-                            break;
-                        }
+        if (key == '#') {
+            EXIT_CRITICAL();
+            StateMachine_DoorbellTrigger();
+            return;
+        }
+
+        if (key == '*') {
+            EXIT_CRITICAL();
+            return;
+        }
+
+        if (key >= '0' && key <= '9') {
+            PasswordBuffer[DigitCount] = key;
+            DigitCount++;
+            UpdateProgressBar(DigitCount);
+
+            if (DigitCount == PASSWORD_LENGTH) {
+                uint8 isCorrect = 1;
+                for (uint8 i = 0; i < PASSWORD_LENGTH; i++) {
+                    if (PasswordBuffer[i] != CorrectPassword[i]) {
+                        isCorrect = 0;
+                        break;
                     }
+                }
 
-                    if (isCorrect) {
-                        LED_On(LED_SUCCESS);
-                        FailedAttempts = 0; /* Reset fails on success */
-                        SevSeg_Display(FailedAttempts);
-                        CurrentState = STATE_UNLOCKED;
-                    } else {
+                if (isCorrect) {
+                    ClearProgressLEDs();
+                    LED_On(LED_SUCCESS);
+                    FailedAttempts = 0;
+                    SevSeg_Display(FailedAttempts);
+                    DigitCount = 0;
+                    CurrentState = STATE_UNLOCKED;
+                } else {
+                    ClearProgressLEDs();
+                    DigitCount = 0;
+                    if (FailedAttempts < 10) FailedAttempts++;
+                    SevSeg_Display(FailedAttempts);
+                    if (FailedAttempts >= LOCKOUT_THRESHOLD) {
                         LED_On(LED_ALARM);
-                        if(FailedAttempts < 9) { /* Hard cap at 9 */
-                            FailedAttempts++;
-                        }
-                        SevSeg_Display(FailedAttempts);
                         CurrentState = STATE_ALARM;
                     }
                 }
             }
-            break;
+        }
     }
+    else if (CurrentState == STATE_UNLOCKED) {
+        if (key == '*') {
+            LED_Off(LED_SUCCESS);
+            DigitCount = 0;
+            CurrentState = STATE_LOCKED;
+        }
+        /* All other keys ignored per spec */
+    }
+    else if (CurrentState == STATE_ALARM) {
+        /* All keypad input ignored — only ISR exits this state */
+        (void)key;
+    }
+
+    EXIT_CRITICAL();
 }
