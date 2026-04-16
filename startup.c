@@ -6,6 +6,7 @@ extern uint32_t _etext, _sdata, _edata, _sbss, _ebss, _sidata;
 /* Forward declarations */
 int main(void);
 void EXTI9_5_IRQHandler(void);
+void EXTI0_IRQHandler(void);
 
 /* Calculate the top of the SRAM (0x20000000 + 96KB) */
 #define SRAM_START 0x20000000U
@@ -62,7 +63,7 @@ void (* const vector_table[])(void) = {
     Default_Handler, /* IRQ 3 */
     Default_Handler, /* IRQ 4 */
     Default_Handler, /* IRQ 5 */
-    Default_Handler, /* IRQ 6  - EXTI0 */
+    EXTI0_IRQHandler, /* IRQ 6  - EXTI0 */
     Default_Handler, /* IRQ 7  - EXTI1 */
     Default_Handler, /* IRQ 8  - EXTI2 */
     Default_Handler, /* IRQ 9  - EXTI3 */

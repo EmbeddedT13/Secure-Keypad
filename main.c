@@ -11,6 +11,7 @@
 
 /* Forward declare the ISR so the compiler maps it correctly */
 void EXTIGPIO_PIN09_5_IRQHandler(void);
+void EXTI0_IRQHandler(void);
 
 int main(void) {
     /*SYSTEM CLOCKS*/
@@ -18,6 +19,7 @@ int main(void) {
     RCC_EnableClock(RCC_AHB1, 1); /* PORTB */
     RCC_EnableClock(RCC_AHB1, 2); /* PORTC */
     RCC_EnableClock(RCC_AHB1, 3); /* PORTD */
+    RCC_EnableClock(RCC_AHB1, 4); /* PORTE */
 
     /* Enable APB2 Clock for the SYSCFG Multiplexer */
     RCC_EnableClock(RCC_APB2, 14);
@@ -36,12 +38,12 @@ int main(void) {
 
     /*INITIALIZE EXTI*/
     /* Activate internal pull-ups for GPIO_PIN08 and GPIO_PIN09 */
-    GPIO_SetPullType(GPIOA, GPIO_PIN08, GPIO_PR_PU);
+    GPIO_SetPullType(GPIOE, GPIO_PIN00, GPIO_PR_PU);
     GPIO_SetPullType(GPIOA, GPIO_PIN09, GPIO_PR_PU);
 
     /* Route and Enable Line GPIO_PIN08 (Emergency Reset) */
-    EXTI_Init(EXTI_PORTA, GPIO_PIN08, EXTI_TR_FALLING);
-    EXTI_EnableInterrupt(GPIO_PIN08);
+    EXTI_Init(EXTI_PORTE, 0, EXTI_TR_FALLING);
+    EXTI_EnableInterrupt(0);
 
     /* Route and Enable Line GPIO_PIN09 (Doorbell) -> Toggle on Rising and Falling Edge */
     EXTI_Init(EXTI_PORTA, GPIO_PIN09, EXTI_TR_RISING_FALLING);
@@ -49,6 +51,10 @@ int main(void) {
 
     /*INITIALIZE NVIC*/
     NVIC_EnableInterrupt(23);
+
+    /* 4. Enable NVIC for EXTI0 (IRQ 6) and set it to highest priority (0) */
+    NVIC_SetPriority(6, NVIC_PRIORITY_URGENT); 
+    NVIC_EnableInterrupt(6);
 
     /*RUN APPLICATION*/
     StateMachine_Init();
@@ -62,14 +68,15 @@ int main(void) {
 
 /*INTERRUPT SERVICE ROUTINE*/
 void EXTI9_5_IRQHandler(void) {
-    
-    if (READ_BIT(EXTI->PR, GPIO_PIN08)) {
-        StateMachine_EmergencyReset();
-        EXTI_ClearPendingFlag(GPIO_PIN08); 
-    }
-
     if (READ_BIT(EXTI->PR, GPIO_PIN09)) {
         StateMachine_DoorbellTrigger();
         EXTI_ClearPendingFlag(GPIO_PIN09); 
+    }
+}
+
+void EXTI0_IRQHandler(void) {
+    if (READ_BIT(EXTI->PR, 0)) {
+        StateMachine_EmergencyReset(); /* Execute reset */
+        EXTI->PR = (1U << 0);          /* Safely clear pending flag */
     }
 }
