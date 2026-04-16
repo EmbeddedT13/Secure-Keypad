@@ -32,7 +32,12 @@ void Keypad_Init(void){
 uint8 Keypad_GetPressedKey(void){
 
     /* Physical layout map of the 4x4 keypad matrix */
-    const uint8 Keypad_Buttons[4][4]= {{'7','8','9','/'}, {'4','5','6','*'}, {'1','2','3','-'}, {'C','0','=','+'}};
+    const uint8 Keypad_Buttons[4][4]= {
+        {'7','8','9','/'}, 
+        {'4','5','6','*'}, 
+        {'1','2','3','-'}, 
+        {'C','0','=','+'}
+    };
 
     uint8 RowIter = 0;
     uint8 ColIter = 0;

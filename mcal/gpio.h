@@ -22,11 +22,13 @@ typedef struct
 #define GPIOA_BaseAddress 0x40020000
 #define GPIOB_BaseAddress 0x40020400
 #define GPIOC_BaseAddress 0x40020800
+#define GPIOD_BaseAddress 0x40020C00
 
 /*Peripheral Pointers*/
 #define GPIOA ((gpio *) GPIOA_BaseAddress)
 #define GPIOB ((gpio *) GPIOB_BaseAddress)
 #define GPIOC ((gpio *) GPIOC_BaseAddress)
+#define GPIOD ((gpio *) GPIOD_BaseAddress)
 
 /*API Definitions*/
 

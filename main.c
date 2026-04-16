@@ -17,6 +17,7 @@ int main(void) {
     RCC_EnableClock(RCC_AHB1, 0); /* PORTA */
     RCC_EnableClock(RCC_AHB1, 1); /* PORTB */
     RCC_EnableClock(RCC_AHB1, 2); /* PORTC */
+    RCC_EnableClock(RCC_AHB1, 3); /* PORTD */
 
     /* Enable APB2 Clock for the SYSCFG Multiplexer */
     RCC_EnableClock(RCC_APB2, 14);

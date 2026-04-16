@@ -16,7 +16,7 @@ typedef enum {
     STATE_ALARM
 } SystemState_t;
 
-#define LOCKOUT_THRESHOLD  3
+#define LOCKOUT_THRESHOLD  10
 #define PASSWORD_LENGTH    4
 
 static SystemState_t  CurrentState    = STATE_LOCKED;

@@ -30,5 +30,5 @@ void EXTI_DisableInterrupt(uint8 Line){
 
 void EXTI_ClearPendingFlag(uint8 Line){
 
-    SET_BIT(EXTI->PR, Line); /*Clear Pending flag by setting it*/
+    EXTI->PR = (1U << Line); /*Clear Pending flag by setting it*/
 }
