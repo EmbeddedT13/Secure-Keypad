@@ -10,7 +10,7 @@
 #include "app/state_machine.h"
 
 /* Forward declare the ISR so the compiler maps it correctly */
-void EXTI9_5_IRQHandler(void);
+void EXTIGPIO_PIN09_5_IRQHandler(void);
 
 int main(void) {
     /*SYSTEM CLOCKS*/
@@ -35,17 +35,17 @@ int main(void) {
     LED_Init(LED_DOORBELL);
 
     /*INITIALIZE EXTI*/
-    /* Activate internal pull-ups for PA8 and PA9 */
-    GPIO_SetPullType(GPIOA, 8, GPIO_PR_PU);
-    GPIO_SetPullType(GPIOA, 9, GPIO_PR_PU);
+    /* Activate internal pull-ups for GPIO_PIN08 and GPIO_PIN09 */
+    GPIO_SetPullType(GPIOA, GPIO_PIN08, GPIO_PR_PU);
+    GPIO_SetPullType(GPIOA, GPIO_PIN09, GPIO_PR_PU);
 
-    /* Route and Enable Line 8 (Emergency Reset) */
-    EXTI_Init(EXTI_PORTA, 8, EXTI_TR_FALLING);
-    EXTI_EnableInterrupt(8);
+    /* Route and Enable Line GPIO_PIN08 (Emergency Reset) */
+    EXTI_Init(EXTI_PORTA, GPIO_PIN08, EXTI_TR_FALLING);
+    EXTI_EnableInterrupt(GPIO_PIN08);
 
-    /* Route and Enable Line 9 (Doorbell) -> Toggle on Falling Edge */
-    EXTI_Init(EXTI_PORTA, 9, EXTI_TR_FALLING);
-    EXTI_EnableInterrupt(9);
+    /* Route and Enable Line GPIO_PIN09 (Doorbell) -> Toggle on Rising and Falling Edge */
+    EXTI_Init(EXTI_PORTA, GPIO_PIN09, EXTI_TR_RISING_FALLING);
+    EXTI_EnableInterrupt(GPIO_PIN09);
 
     /*INITIALIZE NVIC*/
     NVIC_EnableInterrupt(23);
@@ -63,13 +63,13 @@ int main(void) {
 /*INTERRUPT SERVICE ROUTINE*/
 void EXTI9_5_IRQHandler(void) {
     
-    if (READ_BIT(EXTI->PR, 8)) {
+    if (READ_BIT(EXTI->PR, GPIO_PIN08)) {
         StateMachine_EmergencyReset();
-        EXTI_ClearPendingFlag(8); 
+        EXTI_ClearPendingFlag(GPIO_PIN08); 
     }
 
-    if (READ_BIT(EXTI->PR, 9)) {
+    if (READ_BIT(EXTI->PR, GPIO_PIN09)) {
         StateMachine_DoorbellTrigger();
-        EXTI_ClearPendingFlag(9); 
+        EXTI_ClearPendingFlag(GPIO_PIN09); 
     }
 }
