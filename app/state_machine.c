@@ -69,12 +69,15 @@ void StateMachine_Init(void) {
  * the ISR then reads, which is guarded by ENTER/EXIT_CRITICAL in Update().
  */
 void StateMachine_EmergencyReset(void) {
-    CurrentState   = STATE_LOCKED;
-    DigitCount     = 0;
-    FailedAttempts = 0;
-    LastPressedKey = KEYPAD_NO_KEY_PRESSED;
-    ClearAllIndicators();
-    SevSeg_Display(FailedAttempts);
+    if (CurrentState == STATE_ALARM)
+    {
+        CurrentState   = STATE_LOCKED;
+        DigitCount     = 0;
+        FailedAttempts = 0;
+        LastPressedKey = KEYPAD_NO_KEY_PRESSED;
+        ClearAllIndicators();
+        SevSeg_Display(FailedAttempts);
+    }
 }
 
 void StateMachine_DoorbellTrigger(void) {
